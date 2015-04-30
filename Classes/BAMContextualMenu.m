@@ -81,6 +81,7 @@
     UITapGestureRecognizer *tapGestureRecognizer;
     UILongPressGestureRecognizer *shadowGestureRecognizer;
     UILongPressGestureRecognizer *longPressActivationGestureRecognizer;
+    UILongPressGestureRecognizer *pressActivationGestureRecognizer;
     
     BOOL shouldRelayoutSubviews;
     BOOL menuItemIsAnimating;
@@ -179,6 +180,10 @@
         [self.containerView removeGestureRecognizer:longPressActivationGestureRecognizer];
         longPressActivationGestureRecognizer = nil;
     }
+    if (pressActivationGestureRecognizer) {
+        [self.containerView removeGestureRecognizer:pressActivationGestureRecognizer];
+        pressActivationGestureRecognizer = nil;
+    }
     if (tapGestureRecognizer) {
         [self.containerView removeGestureRecognizer:tapGestureRecognizer];
         tapGestureRecognizer = nil;
@@ -193,6 +198,15 @@
             longPressActivationGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPressActivated:)];
             longPressActivationGestureRecognizer.delegate = self;
             [self.containerView addGestureRecognizer:longPressActivationGestureRecognizer];
+            
+            startCircleView.hidden = NO;
+            break;
+        }
+        case kBAMContextualMenuActivateOptionPress: {
+            pressActivationGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(longPressActivated:)];
+            pressActivationGestureRecognizer.delegate = self;
+            pressActivationGestureRecognizer.minimumPressDuration = 0.0001;
+            [self.containerView addGestureRecognizer:pressActivationGestureRecognizer];
             
             startCircleView.hidden = NO;
             break;
@@ -721,41 +735,49 @@
                 titleView = [self.delegate contextualMenu:self titleViewForMenuItemAtIndex:index];
             }
             
-            if (!titleView && [self.delegate respondsToSelector:@selector(contextualMenu:titleForMenuItemAtIndex:)]) {
-                UILabel *titleLabel = [[UILabel alloc] init];
-                titleLabel.text = [self.delegate contextualMenu:self titleForMenuItemAtIndex:index];
-                titleLabel.textColor = [UIColor blackColor];
-                titleLabel.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.85];
-                titleLabel.numberOfLines = 0;
-                titleLabel.lineBreakMode = NSLineBreakByWordWrapping;
-                titleLabel.textAlignment = NSTextAlignmentCenter;
+            if (!titleView) {
                 
-                UIFont *font = [UIFont fontWithName:@"HelveticaNeue-Thin" size:13.0];
-                if ([self.delegate respondsToSelector:@selector(contextualMenu:fontForMenuItemTitleViewAtIndex:)]) {
-                    if ([self.delegate contextualMenu:self fontForMenuItemTitleViewAtIndex:index]) {
-                        font = [self.delegate contextualMenu:self fontForMenuItemTitleViewAtIndex:index];
+                if ([self.delegate respondsToSelector:@selector(contextualMenu:titleForMenuItemAtIndex:)]) {
+                    
+                    UILabel *titleLabel = [[UILabel alloc] init];
+                    titleLabel.text = [self.delegate contextualMenu:self titleForMenuItemAtIndex:index];
+                    titleLabel.textColor = [UIColor blackColor];
+                    titleLabel.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.85];
+                    titleLabel.numberOfLines = 0;
+                    titleLabel.lineBreakMode = NSLineBreakByWordWrapping;
+                    titleLabel.textAlignment = NSTextAlignmentCenter;
+                    
+                    UIFont *font = [UIFont fontWithName:@"HelveticaNeue-Thin" size:13.0];
+                    if ([self.delegate respondsToSelector:@selector(contextualMenu:fontForMenuItemTitleViewAtIndex:)]) {
+                        if ([self.delegate contextualMenu:self fontForMenuItemTitleViewAtIndex:index]) {
+                            font = [self.delegate contextualMenu:self fontForMenuItemTitleViewAtIndex:index];
+                        }
                     }
-                }
-                titleLabel.font = font;
-                titleLabel.alpha = 0.0f;
-                titleLabel.hidden = !stringIsValid(titleLabel.text);
-                titleLabel.clipsToBounds = YES;
-                
-                [titleLabel sizeToFit];
-                
-                if (stringIsValid(titleLabel.text)) {
-                    CGFloat titleLabelHeight = titleLabel.frame.size.height + (topAndBottomTitleLabelPadding * 2.0);
-                    titleLabel.frame = CGRectMake(0.0, 0.0, titleLabel.frame.size.width + (titleLabelHeight * 0.8), titleLabel.frame.size.height + (topAndBottomTitleLabelPadding * 2.0));
-                    titleLabel.center = CGPointMake(startingLocation.x + (menuItem.frame.size.width / 2.0), startingLocation.y + titleLabel.frame.size.height / 2.0);
-                    titleLabel.layer.cornerRadius = titleLabel.frame.size.height / 2.0;
+                    titleLabel.font = font;
+                    titleLabel.alpha = 0.0f;
+                    titleLabel.hidden = !stringIsValid(titleLabel.text);
+                    titleLabel.clipsToBounds = YES;
+                    
+                    [titleLabel sizeToFit];
+                    
+                    if (stringIsValid(titleLabel.text)) {
+                        CGFloat titleLabelHeight = titleLabel.frame.size.height + (topAndBottomTitleLabelPadding * 2.0);
+                        titleLabel.frame = CGRectMake(0.0, 0.0, titleLabel.frame.size.width + (titleLabelHeight * 0.8), titleLabel.frame.size.height + (topAndBottomTitleLabelPadding * 2.0));
+                        titleLabel.center = CGPointMake(startingLocation.x + (menuItem.frame.size.width / 2.0), startingLocation.y + titleLabel.frame.size.height / 2.0);
+                        titleLabel.layer.cornerRadius = titleLabel.frame.size.height / 2.0;
+                    } else {
+                        titleLabel.frame = CGRectMake(0.0, 0.0, biggestMenuItemWidthHeight, 1.0);
+                    }
+                    
+                    titleView = titleLabel;
+                    
                 } else {
-                    titleLabel.frame = CGRectMake(0.0, 0.0, biggestMenuItemWidthHeight, 1.0);
+                    
+                    titleView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, biggestMenuItemWidthHeight, 1.0)];
+                    titleView.backgroundColor = [UIColor clearColor];
+                    
                 }
                 
-                titleView = titleLabel;
-            } else {
-                titleView = [[UIView alloc] initWithFrame:CGRectMake(0.0, 0.0, biggestMenuItemWidthHeight, 1.0)];
-                titleView.backgroundColor = [UIColor clearColor];
             }
             
             biggestMenuItemWidthHeight = MAX(biggestMenuItemWidthHeight, MAX(menuItem.frame.size.width, menuItem.frame.size.height));
@@ -995,6 +1017,9 @@ typedef enum ZZScreenEdge : NSUInteger {
 {
     if (longPressActivationGestureRecognizer) {
         [self.containerView removeGestureRecognizer:longPressActivationGestureRecognizer];
+    }
+    if (pressActivationGestureRecognizer) {
+      [self.containerView removeGestureRecognizer:pressActivationGestureRecognizer];
     }
     if (tapGestureRecognizer) {
         [self.containerView removeGestureRecognizer:tapGestureRecognizer];
